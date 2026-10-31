@@ -1,0 +1,176 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBlocked(firstUid, secondUid) {
+      return exists(/databases/$(database)/documents/profiles/$(firstUid)/blocked/$(secondUid))
+        || exists(/databases/$(database)/documents/profiles/$(secondUid)/blocked/$(firstUid));
+    }
+
+    function acceptedFriend(ownerUid, viewerUid) {
+      let edgePath = /databases/$(database)/documents/profiles/$(ownerUid)/friendAccess/$(viewerUid);
+      return signedIn()
+        && exists(edgePath)
+        && get(edgePath).data.requestId is string
+        && exists(/databases/$(database)/documents/friendRequests/$(get(edgePath).data.requestId))
+        && get(/databases/$(database)/documents/friendRequests/$(get(edgePath).data.requestId)).data.status == 'ACCEPTED'
+        && !isBlocked(ownerUid, viewerUid);
+    }
+
+    function validProfile(data) {
+      return data.keys().hasOnly([
+          'displayName', 'shareLevelXp', 'shareAchievements', 'shareModels', 'sharePhotos',
+          'acceptFriendRequests', 'updatedAt', 'level', 'totalXp', 'achievementIds',
+          'modelCount', 'modelPreview'
+        ])
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 32
+        && data.shareLevelXp is bool
+        && data.shareAchievements is bool
+        && data.shareModels is bool
+        && data.sharePhotos is bool
+        && data.acceptFriendRequests is bool
+        && data.updatedAt is timestamp
+        && (data.shareLevelXp
+          ? (data.level is int && data.level >= 1 && data.totalXp is int && data.totalXp >= 0)
+          : !data.keys().hasAny(['level', 'totalXp']))
+        && (data.shareAchievements
+          ? (data.achievementIds is list && data.achievementIds.size() <= 100)
+          : !data.keys().hasAny(['achievementIds']))
+        && (data.shareModels
+          ? (data.modelCount is int && data.modelCount >= 0 && data.modelPreview is list && data.modelPreview.size() <= 25)
+          : !data.keys().hasAny(['modelCount', 'modelPreview']));
+    }
+
+    match /profiles/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || acceptedFriend(uid, request.auth.uid));
+      allow list: if false;
+      allow create, update: if signedIn() && request.auth.uid == uid && validProfile(request.resource.data);
+      allow delete: if signedIn() && request.auth.uid == uid;
+
+      match /friendAccess/{friendUid} {
+        allow get, list: if signedIn() && (request.auth.uid == uid || request.auth.uid == friendUid);
+        allow create: if verified()
+          && friendUid != uid
+          && request.auth.uid in [uid, friendUid]
+          && !isBlocked(uid, friendUid)
+          && request.resource.data.keys().hasOnly(['friendUid', 'requestId', 'createdAt'])
+          && request.resource.data.friendUid == friendUid
+          && request.resource.data.requestId is string
+          && request.resource.data.createdAt is timestamp
+          && existsAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId))
+          && getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.status == 'ACCEPTED'
+          && getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.fromUid in [uid, friendUid]
+          && getAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.requestId)).data.toUid in [uid, friendUid];
+        allow update: if false;
+        allow delete: if signedIn()
+          && (request.auth.uid == uid || request.auth.uid == friendUid)
+          && resource.data.requestId is string
+          && (!existsAfter(/databases/$(database)/documents/friendRequests/$(resource.data.requestId))
+            || getAfter(/databases/$(database)/documents/friendRequests/$(resource.data.requestId)).data.status == 'REVOKED');
+      }
+
+      match /blocked/{blockedUid} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && blockedUid != uid
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt is timestamp
+          && !existsAfter(/databases/$(database)/documents/profiles/$(uid)/friendAccess/$(blockedUid))
+          && !existsAfter(/databases/$(database)/documents/profiles/$(blockedUid)/friendAccess/$(uid));
+        allow update: if false;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+
+      match /private/{documentId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+
+      match /sharedSpots/{spotId} {
+        allow get, list: if signedIn()
+          && (request.auth.uid == uid || (get(/databases/$(database)/documents/profiles/$(uid)).data.sharePhotos == true
+            && acceptedFriend(uid, request.auth.uid)));
+        allow create, update: if verified()
+          && request.auth.uid == uid
+          && get(/databases/$(database)/documents/profiles/$(uid)).data.sharePhotos == true
+          && request.resource.data.keys().hasOnly(['brandName', 'modelName', 'generation', 'rarity', 'vehicleYear', 'publishedAt'])
+          && request.resource.data.brandName is string
+          && request.resource.data.brandName.size() <= 120
+          && request.resource.data.modelName is string
+          && request.resource.data.modelName.size() <= 160
+          && (request.resource.data.get('generation', null) == null
+            || (request.resource.data.generation is string && request.resource.data.generation.size() <= 120))
+          && request.resource.data.rarity in ['COMMON', 'UNCOMMON', 'SPORT', 'RARE', 'LEGENDARY']
+          && (request.resource.data.get('vehicleYear', null) == null
+            || (request.resource.data.vehicleYear is int && request.resource.data.vehicleYear >= 1886 && request.resource.data.vehicleYear <= 2200))
+          && request.resource.data.publishedAt is timestamp;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /friendCodes/{code} {
+      allow get: if verified()
+        && resource.data.uid is string
+        && !isBlocked(resource.data.uid, request.auth.uid)
+        && get(/databases/$(database)/documents/profiles/$(resource.data.uid)).data.acceptFriendRequests == true;
+      allow list: if false;
+      allow create: if verified()
+        && request.resource.data.keys().hasOnly(['uid', 'displayName'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 32
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.acceptFriendRequests == true;
+      allow update: if verified()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'displayName'])
+        && request.resource.data.displayName is string
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.acceptFriendRequests == true;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /friendRequests/{requestId} {
+      allow get, list: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+        && !isBlocked(resource.data.fromUid, resource.data.toUid);
+      allow create: if verified()
+        && request.resource.data.keys().hasOnly(['fromUid', 'toUid', 'fromDisplayName', 'toDisplayName', 'status', 'createdAt'])
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.fromDisplayName == get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.displayName
+        && request.resource.data.toDisplayName == get(/databases/$(database)/documents/profiles/$(request.resource.data.toUid)).data.displayName
+        && get(/databases/$(database)/documents/profiles/$(request.resource.data.toUid)).data.acceptFriendRequests == true
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.createdAt is timestamp
+        && !isBlocked(request.auth.uid, request.resource.data.toUid);
+      allow update: if verified()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt is timestamp
+        && ((resource.data.toUid == request.auth.uid
+              && resource.data.status == 'PENDING'
+              && request.resource.data.status in ['ACCEPTED', 'DECLINED'])
+            || (resource.data.status == 'ACCEPTED'
+              && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+              && request.resource.data.status == 'REVOKED'
+              && !existsAfter(/databases/$(database)/documents/profiles/$(resource.data.fromUid)/friendAccess/$(resource.data.toUid))
+              && !existsAfter(/databases/$(database)/documents/profiles/$(resource.data.toUid)/friendAccess/$(resource.data.fromUid))))
+        && (request.resource.data.status != 'ACCEPTED'
+          || !isBlocked(resource.data.fromUid, resource.data.toUid));
+      allow delete: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+        && (resource.data.status != 'ACCEPTED'
+          || (!existsAfter(/databases/$(database)/documents/profiles/$(resource.data.fromUid)/friendAccess/$(resource.data.toUid))
+            && !existsAfter(/databases/$(database)/documents/profiles/$(resource.data.toUid)/friendAccess/$(resource.data.fromUid))));
+    }
+  }
+}

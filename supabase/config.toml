@@ -1,0 +1,9 @@
+project_id = "streetspot"
+
+[storage.buckets.shared-spot-photos]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg"]
+
+[functions.shared-photos]
+verify_jwt = false

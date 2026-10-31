@@ -1,0 +1,29 @@
+# Gradle and Android build output
+.gradle/
+.kotlin/
+build/
+**/build/
+node_modules/
+firebase-debug.log
+firestore-debug.log
+
+# Supabase local state and secrets
+supabase/.temp/
+supabase/functions/.env
+.env
+
+# Local coding-agent instructions
+AGENTS.md
+agents.md
+
+# Local Android SDK configuration
+local.properties
+
+# IDE and editor files
+.idea/
+*.iml
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db
