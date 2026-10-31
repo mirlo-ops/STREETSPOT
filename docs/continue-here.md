@@ -2,7 +2,7 @@
 
 ## Состояние
 
-Рабочая папка: `D:/Project/STREETSPOT`. До локального checkpoint здесь не было Git-репозитория; локальный Git создан для сохранения текущего исходного состояния. Remote не настроен.
+Рабочая папка: `D:/Project/STREETSPOT`. Локальный commit `9d1e6bd` содержит исходное состояние проекта; remote `origin` указывает на `https://github.com/mirlo-ops/STREETSPOT.git`. Ветка `main` пока не отправлялась на GitHub.
 
 Этап 0 проверен: на момент начала этапа 1 были семь согласованных Markdown-файлов, а Android-код и Gradle-файлы отсутствовали. Таблица уровней и ключевые решения проекта соответствовали документации.
 
@@ -301,7 +301,7 @@
 ### Осталось до закрытия этапа 11
 
 1. Проверить предыдущий этап 10: миграцию Room 2→3, экспорт/восстановление архива v3 и обратную совместимость v1/v2. В текущем наборе `androidTest` есть только тесты базы данных в памяти; тестов миграции и резервного архива нет, они в этой работе не запускались и не добавлялись, чтобы не расширять порученный этап.
-2. Для реального Firebase-подключения выбрать проект, предоставить `app/google-services.json` и отдельно решить вопрос billing для Storage. Это не требуется для локального Emulator Suite; производственные правила не развёртывались.
+2. Для интеграционной проверки выбрать тестовые Firebase и Supabase проекты, добавить локальный `app/google-services.json` и Supabase URL/publishable key, развернуть Firestore Rules и Edge Function. Firebase Cloud Storage и тариф Blaze не используются.
 
 ### Ограничения и сохранность данных
 
@@ -350,7 +350,7 @@
 3. Проверить upload/download для владельца и друга, отказ постороннему/заблокированному, revoke, EXIF, очистку всех файлов и удаление аккаунта. Не выполнять сборку без отдельной команды.
 4. Ранее задокументированная проверка этапа 10 — Room 2→3 и backup archives v1–v3 — всё ещё не закрыта.
 
-В предыдущем checkpoint файлы были сохранены в рабочей папке без Git. Firebase Storage и Firebase billing не подключать.
+В первоначальном checkpoint файлы были сохранены напрямую в рабочей папке. Firebase Storage и Firebase billing не подключать.
 
 ## Продолжение этапа 11 — 31.10.2026
 
@@ -359,7 +359,7 @@
 - После миграции на Supabase локальные Auth/Firestore Emulator tests успешно не завершены. Запуск через установленный Firebase CLI и временный `npm exec` не выдал логов и был остановлен; поэтому текущие правила не заявляются как прошедшие тесты. `storage.rules` и Storage Emulator в актуальном наборе не используются.
 - Проверку TypeScript для `supabase/functions/shared-photos/index.ts` выполнить не удалось: Deno и TypeScript compiler в доступном окружении отсутствуют; встроенный Node.js не поддерживает синтаксис Deno TypeScript. Проверка удалённой Edge Function и Supabase private bucket также требует тестовых Firebase/Supabase проектов; production credentials в проект не добавлены.
 - Сборка APK, Gradle assemble и Gradle tests в этом продолжении не запускались.
-- Для сохранения кода создан локальный Git checkpoint без remote. `.gitignore` исключает `local.properties`, `AGENTS.md`, локальные Supabase secrets, `node_modules` и build outputs.
+- Создан локальный commit `9d1e6bd` с исходным состоянием проекта; `origin` указывает на GitHub-репозиторий `mirlo-ops/STREETSPOT`. Push на GitHub ещё не выполнялся. `.gitignore` исключает `local.properties`, `AGENTS.md`, локальные Supabase secrets, `node_modules` и build outputs.
 
 ### Следующие действия
 
