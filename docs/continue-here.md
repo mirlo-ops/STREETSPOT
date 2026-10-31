@@ -2,7 +2,7 @@
 
 ## Состояние
 
-Рабочая папка: `D:/Project/STREETSPOT`. Локальный commit `9d1e6bd` содержит исходное состояние проекта; remote `origin` указывает на `https://github.com/mirlo-ops/STREETSPOT.git`. Ветка `main` пока не отправлялась на GitHub.
+Рабочая папка: `D:/Project/STREETSPOT`. Локальный commit `9d1e6bd` содержит исходное состояние проекта; remote `origin` указывает на `https://github.com/mirlo-ops/STREETSPOT.git`. Ветка `main` опубликована на GitHub и синхронизирована с `origin/main`.
 
 Этап 0 проверен: на момент начала этапа 1 были семь согласованных Markdown-файлов, а Android-код и Gradle-файлы отсутствовали. Таблица уровней и ключевые решения проекта соответствовали документации.
 
@@ -359,7 +359,7 @@
 - После миграции на Supabase локальные Auth/Firestore Emulator tests успешно не завершены. Запуск через установленный Firebase CLI и временный `npm exec` не выдал логов и был остановлен; поэтому текущие правила не заявляются как прошедшие тесты. `storage.rules` и Storage Emulator в актуальном наборе не используются.
 - Проверку TypeScript для `supabase/functions/shared-photos/index.ts` выполнить не удалось: Deno и TypeScript compiler в доступном окружении отсутствуют; встроенный Node.js не поддерживает синтаксис Deno TypeScript. Проверка удалённой Edge Function и Supabase private bucket также требует тестовых Firebase/Supabase проектов; production credentials в проект не добавлены.
 - Сборка APK, Gradle assemble и Gradle tests в этом продолжении не запускались.
-- Создан локальный commit `9d1e6bd` с исходным состоянием проекта; `origin` указывает на GitHub-репозиторий `mirlo-ops/STREETSPOT`. Push на GitHub ещё не выполнялся. `.gitignore` исключает `local.properties`, `AGENTS.md`, локальные Supabase secrets, `node_modules` и build outputs.
+- Создан локальный commit `9d1e6bd` с исходным состоянием проекта; `origin` указывает на GitHub-репозиторий `mirlo-ops/STREETSPOT`. Первый push выполнен в ветку `main`; `.gitignore` исключает `local.properties`, `AGENTS.md`, локальные Supabase secrets, `node_modules` и build outputs.
 
 ### Следующие действия
 
